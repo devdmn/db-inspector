@@ -18,13 +18,6 @@ In addition to direct querying, the app features a basic AI assistant that can u
 - **Backend**: Python, FastAPI
 - **AI Integration**: Langchain, Langgraph, Ollama (for local), Groq (in deployment)
 
-## Project Structure
-
-db-inspector/
-├── client/ # React frontend
-├── server/ # Python backend
-└── README.md
-
 ## Status
 
 This project is a work in progress. Some features may still be under development or refinement. Feedback and suggestions are welcome.
