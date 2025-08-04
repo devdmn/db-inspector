@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+body {
+  /* bg-neutral-100 dark: */
+  @apply m-0 bg-neutral-900 text-white transition-colors duration-300 ease-in-out;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+/* Markdown Styles */
+.markdown ul,
+.markdown ol {
+  @apply ps-5;
+}
+.markdown ul {
+  list-style: disc;
+}
+.markdown ol {
+  list-style: decimal;
+}
+.markdown ul ul,
+.markdown ol ul {
+  list-style: circle;
+}
+.markdown ol ol,
+.markdown ul ol {
+  list-style: lower-alpha;
+}
+.markdown hr {
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+
+/* Transition Masks */
+.mask-transition {
+  --mask-top-stop: 0%;
+  --mask-bottom-start: 100%;
+
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black var(--mask-top-stop),
+    black var(--mask-bottom-start),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black var(--mask-top-stop),
+    black var(--mask-bottom-start),
+    transparent 100%
+  );
+
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+
+  transition: --mask-top-stop 0.3s ease, --mask-bottom-start 0.3s ease;
+}
+.mask-top {
+  --mask-top-stop: 10%;
+}
+.mask-bottom {
+  --mask-bottom-start: 90%;
+}
+
+/* Loaders */
+.chat-loader {
+  width: 30px;
+  aspect-ratio: 2;
+  --_g: no-repeat radial-gradient(circle closest-side, #fff 90%, #fff0);
+  background: var(--_g) 0% 50%, var(--_g) 50% 50%, var(--_g) 100% 50%;
+  background-size: calc(100% / 3) 50%;
+  animation: cl-anim 1s infinite linear;
+}
+@keyframes cl-anim {
+  20% {
+    background-position: 0% 0%, 50% 50%, 100% 50%;
+  }
+  40% {
+    background-position: 0% 100%, 50% 0%, 100% 50%;
+  }
+  60% {
+    background-position: 0% 50%, 50% 100%, 100% 0%;
+  }
+  80% {
+    background-position: 0% 50%, 50% 50%, 100% 100%;
+  }
+}
+
