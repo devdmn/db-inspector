@@ -2,7 +2,7 @@
 
 # Model Configuration
 BASE_MODEL = "qwen3:4b"
-GROQ_MODEL = "qwen/qwen3-32b"
+GROQ_MODEL = "qwen/qwen3-32b" #"deepseek-r1-distill-llama-70b" 
 VISION_MODEL = "qwen2.5vl:3b"  # Not used in the current context
 EMBEDDING_MODEL = "nomic-embed-text:latest"  # Not used in the current context
 

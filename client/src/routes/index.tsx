@@ -2,181 +2,131 @@ import Dialog from "@/components/Dialog";
 import { Editor } from "@/components/Editor";
 import Table from "@/components/Table";
 import Tooltip from "@/components/Tooltip";
-import { useChat, useConnect, useExecuteQuery } from "@/utils/hooks";
+import {
+  useChatManager,
+  useConnectionManager,
+  useExecuteQueryManager,
+} from "@/utils/hooks";
 import { createFileRoute } from "@tanstack/react-router";
 import clsx from "clsx";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-
-// TODOs
-
-// ? Priority Scope:
-// * Integrate session with db connection, currently it sets the same db connection for all sessions
-// * Improve the prompt for generation, still not very good
-// * Maybe add edit query feature
-// * Error handling is straight up missing
-// * Improve code quality, it's a mess right now and a lot of bad practices just to get it working
-
-// ? Future Scope:
-// * Theme support (just different preset colors for now)
-// * Add edit for suggested queries
-// * Add query history and saving views
-// * Add chart creation based on views
-// * Multiple database connections and saving connections
 
 export const Route = createFileRoute("/")({
   component: App,
 });
 
+// ? Future Scope:
+// * Improve the prompt for generation, still not very good
+// * Maybe add edit query feature
+// * Theme support (just different preset colors for now)
+// * Move server stuff to at least a local db to reduce memory overhead or even better, a proper database (neon pgsql?)
+// * Add edit for suggested queries
+// * Add query history and saving views
+// * Add chart creation based on views
+// * Multiple database connections and saving connections
+
 function App() {
+  // State
   const [sql, setSql] = useState<string>("");
   const [message, setMessage] = useState<string>("");
-  const [history, setHistory] = useState<
-    {
-      role: "user" | "assistant";
-      content: string;
-      query?: string;
-      state?: "pending" | "approved" | "rejected" | undefined;
-    }[]
-  >([]);
-
-  const chatWindow = useRef<HTMLDivElement>(null);
-
-  const [schema, setSchema] = useState<Record<string, string[]>>({});
-
   const [data, setData] = useState<Record<string, any>[]>([]);
 
-  // DB Connection
-  const [isConnected, setIsConnected] = useState(false);
-  const {
-    mutate: connect,
-    error: connectionError,
-    isPending: isConnecting,
-    data: connectionData,
-  } = useConnect();
+  // Chat Window Ref
+  const chatWindow = useRef<HTMLDivElement>(null);
 
-  // useEffect(() => {
-  //   connect("sqlite:///demo/chinook.db");
-  // }, []);
+  // DB Connection
+  const {
+    schema,
+    threadId,
+    connect,
+    isConnecting,
+    isConnected,
+    error: connectionError,
+  } = useConnectionManager({
+    onSuccess: () => {
+      setRequired(false);
+      setShowDialog(false);
+    },
+    onError: () => {
+      setRequired(false);
+      setShowDialog(false);
+      resetState();
+    },
+  });
 
   const resetState = () => {
-    setHistory([]);
     setData([]);
     setSql("");
     setMessage("");
 
-    queryReset();
-    chatReset();
+    resetQuery();
+    resetChat();
+    resetHistory();
 
     if (chatWindow.current) {
       chatWindow.current.classList.remove("mask-bottom", "mask-top");
     }
   };
 
-  useEffect(() => {
-    if (connectionData) {
-      // const schema: Record<string, string[]> = {};
-
-      // Object.keys(connectionData.schema).forEach((table) => {
-      //   schema[table.toLowerCase()] = connectionData.schema[table].map((col) =>
-      //     col.toLowerCase()
-      //   );
-      // });
-
-      setSchema(connectionData.schema);
-      console.log("Connected to database:", connectionData);
-      setIsConnected(true);
-      setRequired(false);
-      setShowDialog(false);
-
-      resetState();
-    }
-  }, [connectionData]);
-
-  useEffect(() => {
-    if (connectionError) {
-      console.error("Connection error:", connectionError);
-      setIsConnected(false);
-    }
-  }, [connectionError]);
-
   // DB Query
   const {
-    mutate: executeQuery,
-    // error: queryError,
-    isPending: isQuerying,
-    data: queryData,
-    reset: queryReset,
-  } = useExecuteQuery();
-
-  useEffect(() => {
-    if (queryData) {
-      setData(queryData.result);
-      console.log("Query executed successfully:", queryData);
-    }
-  }, [queryData]);
+    execute: executeQuery,
+    isQuerying,
+    error: queryError,
+    reset: resetQuery,
+  } = useExecuteQueryManager({
+    onSuccess: (data) => {
+      if (!data || !data.result) return;
+      setData(data.result);
+      console.log("Query executed successfully:", data);
+    },
+  });
 
   // DB Chat
   const {
-    mutate: chat,
-    // error: chatError,
-    isPending: isChatting,
-    data: chatData,
-    reset: chatReset,
-  } = useChat();
+    history,
+    resetHistory,
+    resetChat,
+    isChatting,
+    sendMessage: send,
+    approveQuery,
+    rejectQuery,
+  } = useChatManager({
+    onSuccess: () => {
+      console.log("Chat message sent successfully");
+    },
+  });
 
-  const updateHistory = (update: (value: typeof history) => typeof history) => {
-    setHistory(update);
-    if (chatWindow.current) {
-      // chatWindow.current.scrollTop = chatWindow.current.scrollHeight;
-      setTimeout(() => {
-        chatWindow.current?.scrollTo({
-          top: chatWindow.current.scrollHeight,
-          behavior: "smooth",
-        });
-      }, 0);
-    }
-  };
+  const scrollToBottom = useCallback(() => {
+    if (!chatWindow.current) return;
+
+    chatWindow.current.scrollTo({
+      top: chatWindow.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    scrollToBottom();
+  }, [history, scrollToBottom]);
 
   const sendMessage = () => {
-    chat({ message, threadId: chatData?.threadId });
-    updateHistory((prev) => [...prev, { role: "user", content: message }]);
+    if (!message.trim()) return;
+
+    send({ message, threadId });
     setMessage("");
   };
-
-  useEffect(() => {
-    if (chatData) {
-      setMessage("");
-      updateHistory((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: chatData.pendingQuery
-            ? "I've generated the following SQL query. Do you want me to execute it?"
-            : chatData.response,
-          query: chatData.pendingQuery,
-          state: chatData.pendingQuery ? "pending" : undefined,
-        },
-      ]);
-      console.log("Chat message sent successfully:", chatData);
-    }
-  }, [chatData]);
 
   const approve = (index: number) => {
     const query = history[index].query;
     if (!query) return;
 
-    chat({ message: "", threadId: chatData?.threadId, confirm: true });
-    updateHistory((prev) =>
-      prev.map((msg, i) => (i === index ? { ...msg, state: "approved" } : msg))
-    );
-    executeQuery(query);
+    approveQuery(index, threadId);
+    executeQuery({ query, threadId });
   };
   const reject = (index: number) => {
-    chat({ message: "", threadId: chatData?.threadId, confirm: false });
-    updateHistory((prev) =>
-      prev.map((msg, i) => (i === index ? { ...msg, state: "rejected" } : msg))
-    );
+    rejectQuery(index, threadId);
   };
 
   // DB Connection Dialog
@@ -288,14 +238,26 @@ function App() {
               {isConnecting ? "Connecting..." : "Connect"}
             </button>
           </form>
+          {connectionError && (
+            <p className="text-sm text-red-500/60">
+              Failed to connect. Please check the URL and try again.
+            </p>
+          )}
         </div>
       </Dialog>
-      <div className="absolute top-0 right-0 rounded-bl-xl bg-black/30 p-4 leading-none z-100">
-        WIP
-      </div>
       <div className="h-screen flex flex-col items-center justify-center selection:bg-neutral-100/10">
         <div className="h-full min-h-0 w-full flex flex-col items-center justify-center p-16 relative">
-          {data?.length > 0 ? (
+          {queryError ? (
+            <div className="absolute top-1/2 left-1/2 -translate-1/2 opacity-60 flex flex-col items-center gap-4 text-red-500">
+              <h4 className="text-7xl text-center">(X_X)</h4>
+              <p className="text-xl">
+                There was an error processing your query!
+              </p>
+              <p className="text-xl">
+                {queryError.message || "Unknown error occurred"}
+              </p>
+            </div>
+          ) : data?.length > 0 ? (
             <Table data={data} />
           ) : (
             <div className="absolute top-1/2 left-1/2 -translate-1/2 opacity-60 flex flex-col items-center gap-4">
@@ -308,38 +270,41 @@ function App() {
           <Editor
             schema={schema}
             onChange={setSql}
-            onSubmit={() => executeQuery(sql)}
+            onSubmit={() => {
+              executeQuery({ query: sql, threadId });
+            }}
+            value={sql}
           />
-          <Tooltip content="Cmd/Ctrl + Enter to run query">
-            <button
-              onClick={() => {
-                executeQuery(sql);
-              }}
-              disabled={isQuerying || !sql.trim()}
-              className={clsx(
-                "flex p-2 rounded-md border border-neutral-100/10 bg-neutral-900/65 transition-all duration-300 ease-out leading-1 items-center mb-auto",
-                isQuerying || !sql.trim()
-                  ? "opacity-50"
-                  : "cursor-pointer hover:bg-neutral-100/10"
-              )}
+          {/* <Tooltip content="Cmd/Ctrl + Enter to run query">
+          </Tooltip> */}
+          <button
+            onClick={() => {
+              executeQuery({ query: sql, threadId });
+            }}
+            disabled={isQuerying || !sql.trim()}
+            className={clsx(
+              "flex p-2 rounded-md border border-neutral-100/10 bg-neutral-900/65 transition-all duration-300 ease-out leading-1 items-center mb-auto",
+              isQuerying || !sql.trim()
+                ? "opacity-50"
+                : "cursor-pointer hover:bg-neutral-100/10"
+            )}
+          >
+            <span className="-mt-0.5">Run</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="size-4 ml-1 -mr-1"
             >
-              <span className="-mt-0.5">Run</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="size-4 ml-1 -mr-1"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m8.25 4.5 7.5 7.5-7.5 7.5"
-                />
-              </svg>
-            </button>
-          </Tooltip>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m8.25 4.5 7.5 7.5-7.5 7.5"
+              />
+            </svg>
+          </button>
         </div>
         <div className="w-full min-h-1/4 max-h-[40vh] flex flex-col border border-neutral-100/10 p-2 bg-neutral-100/5 transition-all duration-300 ease-out gap-1 h-fit">
           {message.length > 0 || history?.length > 0 ? null : (
@@ -376,6 +341,7 @@ function App() {
                 key={index}
                 className={clsx("p-2 rounded-md markdown", {
                   "bg-neutral-100/10 text-neutral-100": message.role === "user",
+                  "text-red-500": message.role === "error",
                   // "bg-neutral-900/65 text-neutral-100":
                   //   message.role === "assistant",
                 })}
@@ -487,4 +453,3 @@ function App() {
     </>
   );
 }
-

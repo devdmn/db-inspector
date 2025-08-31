@@ -24,6 +24,7 @@ class DatabaseResponse(BaseModel):
     message: str
     dialect: str
     schema: dict[str, list[str]]
+    thread_id: str
 
 
 class QueryResponse(BaseModel):

@@ -32,9 +32,9 @@ else:
 
 
 # SQL Tools
-def get_sql_tools():
-    """Get SQL tools with current database connection."""
-    db = get_database()
+def get_sql_tools(thread_id: str):
+    """Get SQL tools with thread-specific database connection."""
+    db = get_database(thread_id)
     return {
         "list_tool": ListSQLDatabaseTool(db=db),
         "info_tool": InfoSQLDatabaseTool(db=db),
@@ -60,6 +60,7 @@ def remove_think(text: str) -> str:
 class PipelineState(MessagesState):
     query: Annotated[str, ..., "The generated SQL query to execute."]
     result: Annotated[str, ..., "The result of the executed SQL query."]
+    thread_id: Annotated[str, ..., "The thread ID for database connection."]
 
 
 class ExecuteQuery(TypedDict):
@@ -71,8 +72,12 @@ class ExecuteQuery(TypedDict):
 # Nodes
 def generate(state: PipelineState):
     """Generate SQL query using the generation agent."""
-    tools = get_sql_tools()
-    db = get_database()
+    thread_id = state.get("thread_id")
+    if not thread_id:
+        raise ValueError("thread_id is required in state for database access")
+
+    tools = get_sql_tools(thread_id)
+    db = get_database(thread_id)
 
     prompt = """
     You are an agent designed to generate SQL queries for a SQL database.
@@ -116,6 +121,10 @@ def generate(state: PipelineState):
 
 def execute(state: PipelineState):
     """Execute the generated SQL query."""
+    thread_id = state.get("thread_id")
+    if not thread_id:
+        raise ValueError("thread_id is required in state for database access")
+
     tool_call = state["messages"][-1].tool_calls[0]
     if not tool_call:
         raise ValueError("No tool call found in the last message.")
@@ -124,7 +133,7 @@ def execute(state: PipelineState):
     if not query:
         raise ValueError("No query generated to execute.")
 
-    db = get_database()
+    db = get_database(thread_id)
     result = db.run(query)
 
     return {
@@ -184,12 +193,20 @@ def create_agent():
     # Add nodes
     graph.add_node("generate", generate)
 
-    # Create generation tools dynamically
-    tools = get_sql_tools()
-    generation_tools = ToolNode(
-        [tools["list_tool"], tools["info_tool"], tools["checker_tool"]]
-    )
-    graph.add_node("generate_tools", generation_tools)
+    # Create a dynamic tool node that gets tools based on thread_id
+    def dynamic_generation_tools(state: PipelineState):
+        """Create tools dynamically based on thread_id in state."""
+        thread_id = state.get("thread_id")
+        if not thread_id:
+            raise ValueError("thread_id is required in state for database access")
+
+        tools = get_sql_tools(thread_id)
+        tool_node = ToolNode(
+            [tools["list_tool"], tools["info_tool"], tools["checker_tool"]]
+        )
+        return tool_node.invoke(state)
+
+    graph.add_node("generate_tools", dynamic_generation_tools)
     graph.add_node("execute", execute)
     graph.add_node("respond", respond)
 

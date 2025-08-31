@@ -2,7 +2,13 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from service import set_db_uri, query_db, run_pipeline, ensure_thread_id
+from service import (
+    set_db_uri,
+    query_db,
+    run_pipeline,
+    ensure_thread_id,
+    generate_thread_id,
+)
 from models import (
     DatabaseRequest,
     QueryRequest,
@@ -32,15 +38,19 @@ async def root():
 
 @app.post("/connect", response_model=DatabaseResponse)
 async def connect(request: DatabaseRequest):
+    thread_id = generate_thread_id()
+
     try:
-        (schema, dialect) = set_db_uri(request.uri)
+        (schema, dialect) = set_db_uri(request.uri, thread_id)
 
         return DatabaseResponse(
             message="Database connection established successfully.",
             dialect=dialect,
             schema=schema,
+            thread_id=thread_id,
         )
     except Exception as e:
+        print(f"Connection Error in {thread_id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -53,12 +63,14 @@ async def query(request: QueryRequest):
         print(f"Thread ID: {thread_id}, Query Response Successful.")
         return QueryResponse(result=result, thread_id=thread_id)
     except Exception as e:
+        print(f"Query Error in {thread_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     thread_id = ensure_thread_id(request.thread_id)
+    print(f"Thread ID: {thread_id}, Received message: {request.message}")
 
     try:
         result = run_pipeline(request.message, thread_id, request.confirm_execution)
@@ -70,6 +82,7 @@ async def chat(request: ChatRequest):
             pending_query=result["pending_query"],
         )
     except Exception as e:
+        print(f"Chat Error in {thread_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

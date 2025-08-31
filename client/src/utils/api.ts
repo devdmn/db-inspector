@@ -2,6 +2,7 @@ export async function connectToDatabase(uri: string): Promise<{
   message: string;
   dialect: string;
   schema: Record<string, string[]>;
+  threadId: string;
 }> {
   const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/connect`, {
     method: "POST",
@@ -15,7 +16,14 @@ export async function connectToDatabase(uri: string): Promise<{
     throw new Error(`HTTP error! status: ${res.status}`);
   }
 
-  return res.json();
+  const data = await res.json();
+
+  return {
+    message: data.message,
+    dialect: data.dialect,
+    schema: data.schema,
+    threadId: data.thread_id,
+  };
 }
 
 export async function executeQuery(

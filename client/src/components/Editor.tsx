@@ -4,26 +4,11 @@ import CodeMirror, { EditorView, type Extension } from "@uiw/react-codemirror";
 import { sql } from "@codemirror/lang-sql";
 import { tags as t } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { keymap } from "@codemirror/view";
-import type { KeyBinding } from "@codemirror/view";
-
-export function submitOnModEnter(onSubmit: () => void) {
-  const bindings: KeyBinding[] = [
-    {
-      key: "Mod-Enter",
-      run: () => {
-        onSubmit();
-        return true; // Prevent further handling
-      },
-    },
-  ];
-
-  return keymap.of(bindings);
-}
 
 interface SqlEditorProps {
   schema: Record<string, string[]>;
   onChange?: (value: string) => void;
+  value?: string;
   onSubmit?: () => void;
 }
 
@@ -128,14 +113,15 @@ const customEditorTheme: Extension = [
 
 export const Editor: React.FC<SqlEditorProps> = ({
   schema,
+  value = "",
   onChange,
-  onSubmit,
+  // onSubmit = () => {},
 }) => {
   return (
     <CodeMirror
       placeholder="Enter your SQL query here..."
-      value=""
-      height="" // "2rem"
+      value={value}
+      // height="" // "2rem"
       maxHeight="20vh"
       theme={customEditorTheme}
       extensions={[
@@ -146,11 +132,17 @@ export const Editor: React.FC<SqlEditorProps> = ({
           schema,
         }),
         EditorView.lineWrapping,
-        submitOnModEnter(onSubmit || (() => {})),
       ]}
       indentWithTab={true}
       lang="sql"
       onChange={(value) => onChange?.(value)}
+      // onKeyDown={(e) => {
+      //   if (!onSubmit) return;
+      //   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      //     onSubmit();
+      //     console.log("Submit action triggered from keydown");
+      //   }
+      // }}
       basicSetup={{ lineNumbers: true, foldGutter: false }}
       className="flex-1"
     />

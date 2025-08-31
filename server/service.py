@@ -1,16 +1,10 @@
 """Service layer for database operations and AI pipeline."""
 
-from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables.config import RunnableConfig
 from database import set_database, get_database
-from config import BASE_MODEL, VISION_MODEL
 import json
 import uuid
-
-# Initialize LLMs
-llm = ChatOllama(model=BASE_MODEL)
-vision_llm = ChatOllama(model=VISION_MODEL)
 
 # Memory
 memory = MemorySaver()
@@ -35,9 +29,9 @@ def get_config(thread_id: str) -> RunnableConfig:
     )
 
 
-def set_db_uri(uri: str) -> tuple[dict[str, list[str]], str]:
-    """Set the database URI."""
-    db = set_database(uri)
+def set_db_uri(uri: str, thread_id: str) -> tuple[dict[str, list[str]], str]:
+    """Set the database URI for a specific thread."""
+    db = set_database(uri, thread_id)
 
     dialect = db.dialect
     tables = db._inspector.get_table_names()
@@ -52,8 +46,8 @@ def set_db_uri(uri: str) -> tuple[dict[str, list[str]], str]:
 
 
 def query_db(query: str, thread_id: str = None):
-    """Execute a query against the database."""
-    db = get_database()
+    """Execute a query against the database for a specific thread."""
+    db = get_database(thread_id)
     result = db._execute(query)
 
     # Import here to avoid circular imports
@@ -71,7 +65,8 @@ def query_db(query: str, thread_id: str = None):
                     "role": "user",
                     "content": f"Query: {query}\nResult:\n{json.dumps(result, indent=2)}",
                 }
-            ]
+            ],
+            "thread_id": thread_id,
         },
     )
     return result
@@ -117,11 +112,17 @@ def run_pipeline(message: str, thread_id: str = None, confirm_execution: bool = 
             # Normal execution or continuation
             if message:
                 answer = agent.invoke(
-                    {"messages": [{"role": "user", "content": message}]},
+                    {
+                        "messages": [{"role": "user", "content": message}],
+                        "thread_id": thread_id,
+                    },
                     config=config,
                 )
             else:
-                # Continue from interrupt
+                # Continue from interrupt - ensure thread_id is in state
+                current_state = agent.get_state(config)
+                if "thread_id" not in current_state.values:
+                    agent.update_state(config=config, values={"thread_id": thread_id})
                 answer = agent.invoke(None, config=config)
 
             # Check if we're interrupted and need confirmation
