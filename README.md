@@ -1,23 +1,25 @@
 # DB Inspector
 
-**DB Inspector** is a lightweight web-based SQL client that connects to any database using a connection URL. It allows users to run raw SQL queries and view the results in a structured table format.
-
-In addition to direct querying, the app features a basic AI assistant that can understand natural language questions, generate the corresponding SQL, and ask for your confirmation before executing the query. The assistant then shows the results and provides a plain English answer based on the output.
+**DB Inspector** is a lightweight, web-based SQL client that connects to a database using a connection URL. It allows you to run raw SQL queries and view the results in a structured table format. It also includes an AI assistant that can interpret natural language questions, generate corresponding SQL queries, and execute them on your behalf—after asking for your confirmation. The assistant then displays the results and provides an explanation in plain English based on the output.
 
 ## Features
 
 - Connect to a database using a connection string
 - Write and execute custom SQL queries
 - View results in a tabular format
-- Chat with an AI agent to generate SQL from natural language
-- Review and approve AI-generated queries before they are run
+- Chat with an AI assistant to generate SQL from natural language
+- Review and approve AI-generated queries before execution
 
 ## Tech Stack
 
 - **Frontend**: React, TanStack Router
 - **Backend**: Python, FastAPI
-- **AI Integration**: Langchain, Langgraph, Ollama (for local), Groq (in deployment)
+- **AI Integration**: LangChain, LangGraph, Ollama (local/dev), Groq (deployment)
 
 ## Status
 
-This project is a work in progress. Some features may still be under development or refinement. Feedback and suggestions are welcome.
+This project is a work in progress, and some features are still under development or refinement.
+
+## Demo
+
+https://github.com/user-attachments/assets/6a86da86-605c-4375-9f25-3649f1923d2b
