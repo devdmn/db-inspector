@@ -22,4 +22,4 @@ This project is a work in progress, and some features are still under developmen
 
 ## Demo
 
-https://github.com/user-attachments/assets/6a86da86-605c-4375-9f25-3649f1923d2b
+https://github.com/user-attachments/assets/f3df9679-4b58-466d-8e8f-b003b040c5ad
